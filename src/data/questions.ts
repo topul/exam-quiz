@@ -1,4 +1,4 @@
-export interface FillQuestion {
+﻿export interface FillQuestion {
   type: "fill";
   context: string;
   codeLines: string[];
@@ -10,9 +10,9 @@ export interface CodeBlockQuestion {
   type: "codeblock";
   title: string;
   fileName: string;
-  codeLines: string[]; // use {1} {2} etc. as blank markers
-  blanks: { id: number; answer: string[]; hint: string }[];
-  explanations: string[]; // per-blank explanation, indexed by id
+  codeLines: string[]; // use ____ as blank marker (matched to blanks[] by order of appearance)
+  blanks: { answer: string[]; hint: string }[];
+  explanations: string[]; // per-blank explanation, same order as blanks[]
 }
 
 export interface MultiQuestion {
@@ -85,7 +85,7 @@ export const questions: Question[] = [
       '    payload = {"text": f"[ALERT] {msg}"}',
       "    try:",
       "        # 填空1：超时时间（秒）",
-      "        requests.post(ALERT_WEBHOOK, json=payload, timeout={1})",
+      "        requests.post(ALERT_WEBHOOK, json=payload, timeout=____)",
       "    except:",
       "        pass",
       "",
@@ -94,7 +94,7 @@ export const questions: Question[] = [
       '        payload = {"user_id": "test_user"}',
       "        start = time.time()",
       "        # 填空2：超时时间（秒）",
-      "        response = requests.post(SERVICE_URL, json=payload, timeout={2})",
+      "        response = requests.post(SERVICE_URL, json=payload, timeout=____)",
       "        latency = (time.time() - start) * 1000",
       "",
       "        if response.status_code != 200:",
@@ -102,7 +102,7 @@ export const questions: Question[] = [
       "",
       "        result = response.json()",
       "        # 填空3：判断recommendations是否为空（填一个关键字）",
-      '        if {3} result.get("recommendations"):',
+      '        if ____ result.get("recommendations"):',
       '            return False, latency, "empty recommendations"',
       "",
       "        if latency > 2000:",
@@ -119,7 +119,7 @@ export const questions: Question[] = [
       "            capture_output=True,",
       "            text=True,",
       "            # 填空4：是否检查命令执行状态（填参数名）",
-      "            {4}=True",
+      "            ____=True",
       "        )",
       "        cpu_str = result.stdout.strip().rstrip('%')",
       "        return float(cpu_str)",
@@ -134,7 +134,7 @@ export const questions: Question[] = [
       "    if failure_count >= FAILURE_THRESHOLD:",
       '        send_alert("重启容器中...")',
       "        # 填空5：执行重启命令（填变量名）",
-      "        subprocess.run({5}, check=False)",
+      "        subprocess.run(____, check=False)",
       "        time.sleep(10)",
       "        failure_count = 0",
       "",
@@ -145,7 +145,7 @@ export const questions: Question[] = [
       "        else:",
       '            send_alert("重启失败")',
       "            # 填空6：退出脚本并返回错误码1",
-      "            {6}",
+      "            ____",
       "    return False",
       "",
       "def rotate_log():",
@@ -154,13 +154,13 @@ export const questions: Question[] = [
       '        if os.path.getsize("/var/log/model_health.log") > 1024 * 1024:',
       "            backup = f'/var/log/model_health.log.{datetime.now().strftime(\"%Y%m%d\")}'",
       "            # 填空7：重命名文件（填函数名）",
-      '            os.{7}("/var/log/model_health.log", backup)',
+      '            os.____("/var/log/model_health.log", backup)',
       '            logger.info("日志已轮转")',
       "",
       "def record_metrics(healthy, latency, cpu, error):",
       "    record = {",
       "        # 填空8：获取ISO格式时间戳（填方法名）",
-      '        "time": datetime.now().{8}(),',
+      '        "time": datetime.now().____(),',
       '        "healthy": healthy,',
       '        "latency_ms": latency,',
       '        "cpu_percent": cpu,',
@@ -168,7 +168,7 @@ export const questions: Question[] = [
       "    }",
       '    with open("/var/log/metrics.jsonl", "a") as f:',
       "        # 填空9：将字典转为JSON字符串（填函数调用）",
-      '        f.write({9} + "\\n")',
+      '        f.write(____ + "\\n")',
       "",
       "def main():",
       "    rotate_log()",
@@ -188,22 +188,22 @@ export const questions: Question[] = [
       "            self_heal(err)",
       "",
       "        # 填空10：等待间隔（填变量名）",
-      "        time.sleep({10})",
+      "        time.sleep(____)",
       "",
       'if __name__ == "__main__":',
       "    main()",
     ],
     blanks: [
-      { id: 1, answer: ["2"], hint: "告警超时是一个较小的数字，单位秒" },
-      { id: 2, answer: ["3"], hint: "比告警超时稍大一点" },
-      { id: 3, answer: ["not"], hint: "Python中用什么关键字对值取反？" },
-      { id: 4, answer: ["check"], hint: "这个参数让命令执行失败时抛出异常" },
-      { id: 5, answer: ["RESTART_COMMAND"], hint: "文件顶部定义的大写常量" },
-      { id: 6, answer: ["sys.exit(1)"], hint: "用 sys 模块的哪个方法退出程序？" },
-      { id: 7, answer: ["rename"], hint: "os 模块中用于重命名的函数" },
-      { id: 8, answer: ["isoformat"], hint: "ISO 格式的英文是什么？" },
-      { id: 9, answer: ["json.dumps(record)"], hint: "json 模块中哪个方法把对象转字符串？" },
-      { id: 10, answer: ["CHECK_INTERVAL"], hint: "文件顶部定义的秒数常量" },
+      { answer: ["2"], hint: "告警超时是一个较小的数字，单位秒" },
+      { answer: ["3"], hint: "比告警超时稍大一点" },
+      { answer: ["not"], hint: "Python中用什么关键字对值取反？" },
+      { answer: ["check"], hint: "这个参数让命令执行失败时抛出异常" },
+      { answer: ["RESTART_COMMAND"], hint: "文件顶部定义的大写常量" },
+      { answer: ["sys.exit(1)"], hint: "用 sys 模块的哪个方法退出程序？" },
+      { answer: ["rename"], hint: "os 模块中用于重命名的函数" },
+      { answer: ["isoformat"], hint: "ISO 格式的英文是什么？" },
+      { answer: ["json.dumps(record)"], hint: "json 模块中哪个方法把对象转字符串？" },
+      { answer: ["CHECK_INTERVAL"], hint: "文件顶部定义的秒数常量" },
     ],
     explanations: [
       "timeout=2。告警请求超时设为2秒，告警不是关键路径。",
@@ -381,7 +381,7 @@ export const questions: Question[] = [
       '    """训练随机森林分类器"""',
       "    model = RandomForestClassifier(n_estimators=100)",
       "    # 填空1：训练模型的方法名",
-      "    model.{1}(X, y)",
+      "    model.____(X, y)",
       "    return model",
       "",
       "def predict_confidence(model, X):",
@@ -391,9 +391,9 @@ export const questions: Question[] = [
       '    """',
       "    proba = model.predict_proba(X)  # 获取每个类别的概率",
       "    # 填空2：预测类别的方法名",
-      "    pred = model.{2}(X)",
+      "    pred = model.____(X)",
       "    # 填空3：取最高概率的函数名",
-      "    confidence = np.{3}(proba, axis=1)",
+      "    confidence = np.____(proba, axis=1)",
       "    return pred, confidence",
       "",
       "def detect_mislabeled(y_true, y_pred, confidence):",
@@ -403,7 +403,7 @@ export const questions: Question[] = [
       '    """',
       "    inconsistent = (y_true != y_pred)",
       "    # 填空4：比较运算符",
-      "    low_conf = confidence {4} CONFIDENCE_THRESHOLD",
+      "    low_conf = confidence ____ CONFIDENCE_THRESHOLD",
       "    mislabeled_idx = np.where(inconsistent & low_conf)[0]",
       "    return mislabeled_idx",
       "",
@@ -417,7 +417,7 @@ export const questions: Question[] = [
       '        疑似错误数=("is_mislabeled", "sum")',
       "    )",
       "    # 填空5：错误率的运算符（疑似错误数 ? 总标注数）",
-      '    report["错误率"] = report["疑似错误数"] {5} report["总标注数"]',
+      '    report["错误率"] = report["疑似错误数"] ____ report["总标注数"]',
       "    return report",
       "",
       "def main():",
@@ -445,11 +445,11 @@ export const questions: Question[] = [
       "    main()",
     ],
     blanks: [
-      { id: 1, answer: ["fit"], hint: "sklearn 模型用什么方法训练？" },
-      { id: 2, answer: ["predict"], hint: "predict_proba 返回概率，用什么方法返回类别？" },
-      { id: 3, answer: ["max"], hint: "用 numpy 的什么方法取每行的最大值？" },
-      { id: 4, answer: ["<"], hint: "置信度低于阈值，用什么比较运算符？" },
-      { id: 5, answer: ["/"], hint: "错误率 = 错误数 ÷ 总数，用什么运算符？" },
+      { answer: ["fit"], hint: "sklearn 模型用什么方法训练？" },
+      { answer: ["predict"], hint: "predict_proba 返回概率，用什么方法返回类别？" },
+      { answer: ["max"], hint: "用 numpy 的什么方法取每行的最大值？" },
+      { answer: ["<"], hint: "置信度低于阈值，用什么比较运算符？" },
+      { answer: ["/"], hint: "错误率 = 错误数 ÷ 总数，用什么运算符？" },
     ],
     explanations: [
       "fit。model.fit(X, y) 是 sklearn 模型的标准训练方法。",

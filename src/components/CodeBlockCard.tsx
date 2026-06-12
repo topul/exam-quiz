@@ -24,7 +24,6 @@ export default function CodeBlockCard({
   const [activeHint, setActiveHint] = useState<number | null>(null);
   const codeRef = useRef<HTMLDivElement>(null);
 
-  // Auto-resize blank inputs
   useEffect(() => {
     codeRef.current
       ?.querySelectorAll<HTMLInputElement>("input[data-blank]")
@@ -64,21 +63,24 @@ export default function CodeBlockCard({
   const correctCount = results.filter((r) => r === "correct").length;
   const totalBlanks = question.blanks.length;
 
-  /**
-   * Render a single code line, replacing {N} markers with input fields.
-   */
-  const renderLine = (line: string, lineIdx: number) => {
-    const regex = /\{(\d+)\}/g;
-    const parts: (string | number)[] = [];
-    let lastIdx = 0;
-    let m: RegExpExecArray | null;
-
-    while ((m = regex.exec(line)) !== null) {
-      if (m.index > lastIdx) parts.push(line.slice(lastIdx, m.index));
-      parts.push(parseInt(m[1]));
-      lastIdx = m.index + m[0].length;
+  // Pre-compute which blank index belongs to which line
+  const lineBlankMap = new Map<number, number[]>();
+  let blankCursor = 0;
+  const BLANK_TOKEN = "____";
+  for (let li = 0; li < question.codeLines.length; li++) {
+    const indices: number[] = [];
+    let pos = 0;
+    while (true) {
+      const idx = question.codeLines[li].indexOf(BLANK_TOKEN, pos);
+      if (idx === -1) break;
+      indices.push(blankCursor++);
+      pos = idx + BLANK_TOKEN.length;
     }
-    if (lastIdx < line.length) parts.push(line.slice(lastIdx));
+    if (indices.length > 0) lineBlankMap.set(li, indices);
+  }
+
+  const renderLine = (line: string, lineIdx: number) => {
+    const blankIndices = lineBlankMap.get(lineIdx);
 
     const lineNum = (
       <span className="inline-block w-8 text-right mr-3 text-slate-600 select-none text-xs">
@@ -86,77 +88,84 @@ export default function CodeBlockCard({
       </span>
     );
 
-    if (parts.length === 0 || (parts.length === 1 && typeof parts[0] === "string")) {
-      const text = typeof parts[0] === "string" ? parts[0] : "";
+    // No blanks on this line
+    if (!blankIndices || blankIndices.length === 0) {
       return (
         <div key={lineIdx} className="whitespace-pre">
           {lineNum}
-          <span className="text-slate-300">{text || "\u00A0"}</span>
+          <span className="text-slate-300">{line || "\u00A0"}</span>
         </div>
       );
+    }
+
+    // Split line by "____" and interleave with inputs
+    const textParts = line.split(BLANK_TOKEN);
+    const elements: React.ReactNode[] = [];
+
+    for (let i = 0; i < textParts.length; i++) {
+      if (textParts[i]) {
+        elements.push(
+          <span key={`t${i}`} className="text-slate-300">
+            {textParts[i]}
+          </span>
+        );
+      }
+      if (i < blankIndices.length) {
+        const bi = blankIndices[i];
+        const blank = question.blanks[bi];
+        const r = results[bi];
+        const cls = `inline-block px-2 py-0 rounded border text-center font-mono text-[13px] outline-none transition-all ${
+          r === "correct"
+            ? "bg-emerald-950 border-emerald-500 text-emerald-300"
+            : r === "wrong"
+            ? "bg-red-950 border-red-500 text-red-300"
+            : "bg-indigo-950/80 border-indigo-500/60 text-indigo-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-400"
+        }`;
+
+        elements.push(
+          <span key={`b${bi}`} className="inline-flex items-center gap-0.5">
+            <span className="text-indigo-400/70 text-[10px] font-bold select-none">
+              {bi + 1}
+            </span>
+            <input
+              data-blank={bi}
+              value={inputs[bi]}
+              onChange={(e) => handleInput(bi, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCheck();
+                if (e.key === "Tab") {
+                  e.preventDefault();
+                  const next = (bi + 1) % question.blanks.length;
+                  codeRef.current
+                    ?.querySelector<HTMLInputElement>(
+                      `input[data-blank="${next}"]`
+                    )
+                    ?.focus();
+                }
+              }}
+              disabled={checked}
+              className={cls}
+              style={{
+                minWidth: "6ch",
+                width: `${Math.max(inputs[bi].length + 2, 6)}ch`,
+              }}
+              placeholder="?"
+            />
+          </span>
+        );
+      }
     }
 
     return (
       <div key={lineIdx} className="whitespace-pre">
         {lineNum}
-        {parts.map((part, pi) => {
-          if (typeof part === "string") {
-            return (
-              <span key={pi} className="text-slate-300">
-                {part}
-              </span>
-            );
-          }
-          // part is a blank id
-          const bi = question.blanks.findIndex((b) => b.id === part);
-          if (bi < 0) return <span key={pi}>{`{${part}}`}</span>;
-
-          const r = results[bi];
-          const inputCls = `inline-block px-2 py-0 rounded border text-center font-mono text-[13px] outline-none transition-all ${
-            r === "correct"
-              ? "bg-emerald-950 border-emerald-500 text-emerald-300"
-              : r === "wrong"
-              ? "bg-red-950 border-red-500 text-red-300"
-              : "bg-indigo-950/80 border-indigo-500/60 text-indigo-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-400"
-          }`;
-
-          return (
-            <span key={pi} className="inline-flex items-center gap-0.5">
-              <span className="text-indigo-400/70 text-[10px] font-bold select-none">
-                {part}
-              </span>
-              <input
-                data-blank={bi}
-                value={inputs[bi]}
-                onChange={(e) => handleInput(bi, e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCheck();
-                  if (e.key === "Tab") {
-                    e.preventDefault();
-                    const next = (bi + 1) % question.blanks.length;
-                    codeRef.current
-                      ?.querySelector<HTMLInputElement>(`input[data-blank="${next}"]`)
-                      ?.focus();
-                  }
-                }}
-                disabled={checked}
-                className={inputCls}
-                style={{
-                  minWidth: "6ch",
-                  width: `${Math.max(inputs[bi].length + 2, 6)}ch`,
-                }}
-                placeholder="?"
-              />
-            </span>
-          );
-        })}
+        {elements}
       </div>
     );
   };
 
   return (
     <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6">
-      {/* Title */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xs font-semibold text-sky-400 uppercase tracking-wider">
           {question.title}
@@ -174,7 +183,6 @@ export default function CodeBlockCard({
         )}
       </div>
 
-      {/* Code Block */}
       <div
         ref={codeRef}
         className="rounded-xl bg-slate-950 border border-slate-800 p-4 font-mono text-[13px] leading-[1.85] mb-4 overflow-x-auto"
@@ -182,7 +190,6 @@ export default function CodeBlockCard({
         {question.codeLines.map((line, li) => renderLine(line, li))}
       </div>
 
-      {/* Per-blank hint toggles */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         {question.blanks.map((blank, bi) => (
           <button
@@ -198,20 +205,17 @@ export default function CodeBlockCard({
                 : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500"
             }`}
           >
-            #{blank.id}
+            #{bi + 1}
           </button>
         ))}
       </div>
 
-      {/* Active hint */}
       {activeHint !== null && !checked && (
         <div className="mb-3 p-3 rounded-lg bg-amber-950/40 border border-amber-700/50 text-amber-300 text-sm">
-          填空 #{question.blanks[activeHint].id} 提示：
-          {question.blanks[activeHint].hint}
+          填空 #{activeHint + 1} 提示：{question.blanks[activeHint].hint}
         </div>
       )}
 
-      {/* Buttons */}
       <div className="flex flex-wrap gap-2">
         {!checked && (
           <button
@@ -223,12 +227,10 @@ export default function CodeBlockCard({
         )}
       </div>
 
-      {/* Per-blank explanations after check */}
       {checked && (
         <div className="mt-4 space-y-2">
           {question.blanks.map((blank, bi) => {
             const r = results[bi];
-            const explIdx = blank.id - 1;
             return (
               <div
                 key={bi}
@@ -239,7 +241,7 @@ export default function CodeBlockCard({
                 }`}
               >
                 <span className="font-medium">
-                  #{blank.id} {r === "correct" ? "✅" : "❌"}
+                  #{bi + 1} {r === "correct" ? "✅" : "❌"}
                 </span>{" "}
                 {r === "wrong" && (
                   <span className="text-red-200">
@@ -250,7 +252,7 @@ export default function CodeBlockCard({
                   </span>
                 )}
                 <span className="text-slate-400">
-                  {question.explanations[explIdx]}
+                  {question.explanations[bi]}
                 </span>
               </div>
             );
