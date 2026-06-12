@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { CodeBlockQuestion } from "@/data/questions";
+import { highlightPython } from "@/lib/syntax";
 
 interface Props {
   question: CodeBlockQuestion;
@@ -16,23 +17,21 @@ export default function CodeBlockCard({
   isAnswered,
   onAnswered,
 }: Props) {
-  const [inputs, setInputs] = useState<string[]>(
-    question.blanks.map(() => "")
-  );
+  const [inputs, setInputs] = useState<string[]>(question.blanks.map(() => ""));
   const [results, setResults] = useState<("correct" | "wrong" | null)[]>(
     question.blanks.map(() => null)
   );
   const [checked, setChecked] = useState(false);
-  const [showHints, setShowHints] = useState<Set<number>>(new Set());
   const [activeHint, setActiveHint] = useState<number | null>(null);
   const codeRef = useRef<HTMLDivElement>(null);
 
-  // Auto-resize inputs to fit content
+  // Auto-resize blank inputs
   useEffect(() => {
-    const els = codeRef.current?.querySelectorAll<HTMLInputElement>("input[data-blank]");
-    els?.forEach((el) => {
-      el.style.width = `${Math.max(el.value.length + 2, 6)}ch`;
-    });
+    codeRef.current
+      ?.querySelectorAll<HTMLInputElement>("input[data-blank]")
+      .forEach((el) => {
+        el.style.width = `${Math.max(el.value.length + 2, 6)}ch`;
+      });
   }, [inputs]);
 
   const handleInput = (bi: number, val: string) => {
@@ -45,16 +44,18 @@ export default function CodeBlockCard({
     if (checked) return;
     const newResults = question.blanks.map((blank, i) => {
       const val = inputs[i].trim();
-      const correct = blank.answer.some(
+      return blank.answer.some(
         (a) => val === a || val.toLowerCase() === a.toLowerCase()
-      );
-      return correct ? ("correct" as const) : ("wrong" as const);
+      )
+        ? ("correct" as const)
+        : ("wrong" as const);
     });
     setResults(newResults);
     setChecked(true);
-    const correctCount = newResults.filter((r) => r === "correct").length;
-    const allCorrect = correctCount === question.blanks.length;
-    onAnswered(globalIdx, allCorrect);
+    onAnswered(
+      globalIdx,
+      newResults.every((r) => r === "correct")
+    );
   };
 
   const toggleHint = (bi: number) => {
@@ -63,6 +64,51 @@ export default function CodeBlockCard({
 
   const correctCount = results.filter((r) => r === "correct").length;
   const totalBlanks = question.blanks.length;
+
+  // Build line number + highlighted code for each line
+  const renderBlankInput = (id: number) => {
+    const bi = question.blanks.findIndex((b) => b.id === id);
+    if (bi < 0) return <span key={`miss-${id}`}>{`{${id}}`}</span>;
+
+    const r = results[bi];
+    const cls = `inline-block px-2 py-0 rounded border text-center font-mono text-[13px] outline-none transition-all ${
+      r === "correct"
+        ? "bg-emerald-950 border-emerald-500 text-emerald-300"
+        : r === "wrong"
+        ? "bg-red-950 border-red-500 text-red-300"
+        : "bg-indigo-950/80 border-indigo-500/60 text-indigo-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-400"
+    }`;
+
+    return (
+      <span key={`blank-${id}`} className="inline-flex items-center gap-0.5">
+        <span className="text-indigo-400/70 text-[10px] font-bold select-none">
+          {id}
+        </span>
+        <input
+          data-blank={bi}
+          value={inputs[bi]}
+          onChange={(e) => handleInput(bi, e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleCheck();
+            if (e.key === "Tab") {
+              e.preventDefault();
+              const next = (bi + 1) % question.blanks.length;
+              codeRef.current
+                ?.querySelector<HTMLInputElement>(`input[data-blank="${next}"]`)
+                ?.focus();
+            }
+          }}
+          disabled={checked}
+          className={cls}
+          style={{
+            minWidth: "6ch",
+            width: `${Math.max(inputs[bi].length + 2, 6)}ch`,
+          }}
+          placeholder="?"
+        />
+      </span>
+    );
+  };
 
   return (
     <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6">
@@ -87,94 +133,26 @@ export default function CodeBlockCard({
       {/* Code Block */}
       <div
         ref={codeRef}
-        className="rounded-xl bg-slate-950 border border-slate-800 p-4 font-mono text-[13px] leading-[1.8] mb-4 overflow-x-auto"
+        className="rounded-xl bg-[#0d1117] border border-slate-800 p-4 font-mono text-[13px] leading-[1.85] mb-4 overflow-x-auto"
       >
         {question.codeLines.map((line, li) => {
-          // Check if this line contains any blank markers {N}
-          const blankRegex = /\{(\d+)\}/g;
-          const parts: (string | number)[] = [];
-          let lastIndex = 0;
-          let match: RegExpExecArray | null;
-
-          while ((match = blankRegex.exec(line)) !== null) {
-            if (match.index > lastIndex) {
-              parts.push(line.slice(lastIndex, match.index));
-            }
-            parts.push(parseInt(match[1]));
-            lastIndex = match.index + match[0].length;
-          }
-          if (lastIndex < line.length) {
-            parts.push(line.slice(lastIndex));
-          }
-
-          // Line number
           const lineNum = (
-            <span className="inline-block w-8 text-right mr-3 text-slate-600 select-none text-xs">
+            <span className="inline-block w-8 text-right mr-3 text-slate-600 select-none text-xs leading-[1.85]">
               {li + 1}
             </span>
           );
 
-          if (parts.length === 1 && typeof parts[0] === "string") {
-            // Normal line, no blanks
-            return (
-              <div key={li} className="whitespace-pre">
-                {lineNum}
-                <span className="text-slate-300">{parts[0] || "\u00A0"}</span>
-              </div>
-            );
-          }
+          // Highlight the line with Prism, blanks rendered as inputs
+          const highlighted = highlightPython(line, renderBlankInput);
 
-          // Line with blanks
           return (
             <div key={li} className="whitespace-pre">
               {lineNum}
-              {parts.map((part, pi) => {
-                if (typeof part === "string") {
-                  return (
-                    <span key={pi} className="text-slate-300">
-                      {part}
-                    </span>
-                  );
-                }
-                // part is a blank id
-                const bi = question.blanks.findIndex((b) => b.id === part);
-                if (bi < 0) return <span key={pi}>{`{${part}}`}</span>;
-
-                const r = results[bi];
-                const inputCls = `inline-block px-2 py-0 rounded border text-center font-mono text-[13px] outline-none transition-all ${
-                  r === "correct"
-                    ? "bg-emerald-950 border-emerald-500 text-emerald-300"
-                    : r === "wrong"
-                    ? "bg-red-950 border-red-500 text-red-300"
-                    : "bg-indigo-950 border-indigo-500 text-indigo-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-400"
-                }`;
-
-                return (
-                  <span key={pi} className="inline-flex items-center gap-1">
-                    <span className="text-indigo-400 text-xs">#{part}</span>
-                    <input
-                      data-blank={bi}
-                      value={inputs[bi]}
-                      onChange={(e) => handleInput(bi, e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleCheck();
-                        if (e.key === "Tab") {
-                          e.preventDefault();
-                          const nextBi = (bi + 1) % question.blanks.length;
-                          const nextInput = codeRef.current?.querySelector<HTMLInputElement>(
-                            `input[data-blank="${nextBi}"]`
-                          );
-                          nextInput?.focus();
-                        }
-                      }}
-                      disabled={checked}
-                      className={inputCls}
-                      style={{ minWidth: "6ch", width: `${Math.max(inputs[bi].length + 2, 6)}ch` }}
-                      placeholder="?"
-                    />
-                  </span>
-                );
-              })}
+              {highlighted.length > 0 ? (
+                highlighted
+              ) : (
+                <span className="text-slate-300">{"\u00A0"}</span>
+              )}
             </div>
           );
         })}
@@ -237,12 +215,14 @@ export default function CodeBlockCard({
                 }`}
               >
                 <span className="font-medium">
-                  #{blank.id}{" "}
-                  {r === "correct" ? "✅" : "❌"}
+                  #{blank.id} {r === "correct" ? "✅" : "❌"}
                 </span>{" "}
                 {r === "wrong" && (
                   <span className="text-red-200">
-                    正确答案：<code className="bg-red-900/50 px-1 rounded">{blank.answer[0]}</code>{" "}
+                    正确答案：
+                    <code className="bg-red-900/50 px-1 rounded">
+                      {blank.answer[0]}
+                    </code>{" "}
                   </span>
                 )}
                 <span className="text-slate-400">
