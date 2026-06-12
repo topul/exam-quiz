@@ -6,6 +6,15 @@ export interface FillQuestion {
   explanation: string;
 }
 
+export interface CodeBlockQuestion {
+  type: "codeblock";
+  title: string;
+  fileName: string;
+  codeLines: string[]; // use {1} {2} etc. as blank markers
+  blanks: { id: number; answer: string[]; hint: string }[];
+  explanations: string[]; // per-blank explanation, indexed by id
+}
+
 export interface MultiQuestion {
   type: "multi";
   question: string;
@@ -22,7 +31,12 @@ export interface EssayQuestion {
   reference: string[];
 }
 
-export type Question = (FillQuestion | MultiQuestion | EssayQuestion) & {
+export type Question = (
+  | FillQuestion
+  | CodeBlockQuestion
+  | MultiQuestion
+  | EssayQuestion
+) & {
   project: string;
 };
 
@@ -41,103 +55,168 @@ export const PROJECT_SHORT: Record<string, string> = {
 };
 
 export const questions: Question[] = [
-  // ===== 项目1: 健康检查与自愈 (13题) =====
+  // ===== 项目1: 健康检查与自愈 =====
   {
     project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "send_alert 函数中，发送告警的超时时间",
+    type: "codeblock",
+    title: "代码填空：health_check_self_healing.py",
+    fileName: "health_check_self_healing.py",
     codeLines: [
-      'requests.post(ALERT_WEBHOOK, json=payload, timeout=____)',
+      "import requests",
+      "import subprocess",
+      "import time",
+      "import logging",
+      "import json",
+      "import sys",
+      "from datetime import datetime",
+      "",
+      'SERVICE_URL = "http://localhost:8080/recommend"',
+      "CHECK_INTERVAL = 30",
+      "FAILURE_THRESHOLD = 3",
+      'RESTART_COMMAND = ["docker", "restart", "rec-model"]',
+      'ALERT_WEBHOOK = "https://hooks.slack.com/xxx"',
+      "",
+      "logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')",
+      "logger = logging.getLogger(__name__)",
+      "",
+      "failure_count = 0",
+      "",
+      "def send_alert(msg):",
+      '    payload = {"text": f"[ALERT] {msg}"}',
+      "    try:",
+      "        # 填空1：超时时间（秒）",
+      "        requests.post(ALERT_WEBHOOK, json=payload, timeout={1})",
+      "    except:",
+      "        pass",
+      "",
+      "def check_health():",
+      "    try:",
+      '        payload = {"user_id": "test_user"}',
+      "        start = time.time()",
+      "        # 填空2：超时时间（秒）",
+      "        response = requests.post(SERVICE_URL, json=payload, timeout={2})",
+      "        latency = (time.time() - start) * 1000",
+      "",
+      "        if response.status_code != 200:",
+      '            return False, latency, f"HTTP {response.status_code}"',
+      "",
+      "        result = response.json()",
+      "        # 填空3：判断recommendations是否为空（填一个关键字）",
+      '        if {3} result.get("recommendations"):',
+      '            return False, latency, "empty recommendations"',
+      "",
+      "        if latency > 2000:",
+      '            return False, latency, "slow response"',
+      "",
+      "        return True, latency, None",
+      "    except Exception as e:",
+      "        return False, 0, str(e)",
+      "",
+      "def get_cpu_usage():",
+      "    try:",
+      "        result = subprocess.run(",
+      '            ["docker", "stats", "rec-model", "--no-stream", "--format", "{{.CPUPerc}}"],',
+      "            capture_output=True,",
+      "            text=True,",
+      "            # 填空4：是否检查命令执行状态（填参数名）",
+      "            {4}=True",
+      "        )",
+      "        cpu_str = result.stdout.strip().rstrip('%')",
+      "        return float(cpu_str)",
+      "    except:",
+      "        return 0.0",
+      "",
+      "def self_heal(error_msg):",
+      "    global failure_count",
+      "    failure_count += 1",
+      '    logger.warning(f"失败次数: {failure_count}/{FAILURE_THRESHOLD}")',
+      "",
+      "    if failure_count >= FAILURE_THRESHOLD:",
+      '        send_alert("重启容器中...")',
+      "        # 填空5：执行重启命令（填变量名）",
+      "        subprocess.run({5}, check=False)",
+      "        time.sleep(10)",
+      "        failure_count = 0",
+      "",
+      "        healthy, _, _ = check_health()",
+      "        if healthy:",
+      '            send_alert("重启成功")',
+      "            return True",
+      "        else:",
+      '            send_alert("重启失败")',
+      "            # 填空6：退出脚本并返回错误码1",
+      "            {6}",
+      "    return False",
+      "",
+      "def rotate_log():",
+      "    import os",
+      '    if os.path.exists("/var/log/model_health.log"):',
+      '        if os.path.getsize("/var/log/model_health.log") > 1024 * 1024:',
+      "            backup = f'/var/log/model_health.log.{datetime.now().strftime(\"%Y%m%d\")}'",
+      "            # 填空7：重命名文件（填函数名）",
+      '            os.{7}("/var/log/model_health.log", backup)',
+      '            logger.info("日志已轮转")',
+      "",
+      "def record_metrics(healthy, latency, cpu, error):",
+      "    record = {",
+      "        # 填空8：获取ISO格式时间戳（填方法名）",
+      '        "time": datetime.now().{8}(),',
+      '        "healthy": healthy,',
+      '        "latency_ms": latency,',
+      '        "cpu_percent": cpu,',
+      '        "error": error',
+      "    }",
+      '    with open("/var/log/metrics.jsonl", "a") as f:',
+      "        # 填空9：将字典转为JSON字符串（填函数调用）",
+      '        f.write({9} + "\\n")',
+      "",
+      "def main():",
+      "    rotate_log()",
+      '    logger.info("启动健康检查")',
+      "",
+      "    while True:",
+      "        healthy, latency, err = check_health()",
+      "        cpu = get_cpu_usage()",
+      "        record_metrics(healthy, latency, cpu, err)",
+      "",
+      "        global failure_count",
+      "        if healthy:",
+      "            failure_count = 0",
+      '            logger.info(f"健康 | 延迟:{latency:.0f}ms CPU:{cpu:.1f}%")',
+      "        else:",
+      '            logger.warning(f"不健康: {err}")',
+      "            self_heal(err)",
+      "",
+      "        # 填空10：等待间隔（填变量名）",
+      "        time.sleep({10})",
+      "",
+      'if __name__ == "__main__":',
+      "    main()",
     ],
-    blanks: [{ index: 0, answer: ["2", "timeout=2"], hint: "告警超时是一个较小的数字，单位秒" }],
-    explanation: "timeout=2。告警请求超时设为2秒，告警不是关键路径，不需要等太久。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "check_health 函数中，健康检查请求的超时时间",
-    codeLines: [
-      'response = requests.post(SERVICE_URL, json=payload, timeout=____)',
+    blanks: [
+      { id: 1, answer: ["2"], hint: "告警超时是一个较小的数字，单位秒" },
+      { id: 2, answer: ["3"], hint: "比告警超时稍大一点" },
+      { id: 3, answer: ["not"], hint: "Python中用什么关键字对值取反？" },
+      { id: 4, answer: ["check"], hint: "这个参数让命令执行失败时抛出异常" },
+      { id: 5, answer: ["RESTART_COMMAND"], hint: "文件顶部定义的大写常量" },
+      { id: 6, answer: ["sys.exit(1)"], hint: "用 sys 模块的哪个方法退出程序？" },
+      { id: 7, answer: ["rename"], hint: "os 模块中用于重命名的函数" },
+      { id: 8, answer: ["isoformat"], hint: "ISO 格式的英文是什么？" },
+      { id: 9, answer: ["json.dumps(record)"], hint: "json 模块中哪个方法把对象转字符串？" },
+      { id: 10, answer: ["CHECK_INTERVAL"], hint: "文件顶部定义的秒数常量" },
     ],
-    blanks: [{ index: 0, answer: ["3", "timeout=3"], hint: "比告警超时稍大一点" }],
-    explanation: "timeout=3。健康检查需要等模型推理返回，超时设为3秒。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "判断推荐结果 recommendations 是否为空",
-    codeLines: [
-      'if ____ result.get("recommendations"):',
-      '    return False, latency, "empty recommendations"',
+    explanations: [
+      "timeout=2。告警请求超时设为2秒，告警不是关键路径。",
+      "timeout=3。健康检查需要等模型推理返回，超时设为3秒。",
+      "not。not result.get('recommendations') 在值为 None/空列表时返回 True。",
+      "check=True。命令返回非零退出码时抛出 CalledProcessError。",
+      'RESTART_COMMAND。文件开头定义的重启命令变量 ["docker", "restart", "rec-model"]。',
+      "sys.exit(1)。sys.exit() 退出程序，参数 1 表示非正常退出。",
+      "os.rename()。将当前日志文件重命名为带日期后缀的备份文件。",
+      "isoformat()。datetime 的 isoformat() 返回 ISO 8601 格式时间字符串。",
+      "json.dumps(record)。dumps = dump string，将字典序列化为 JSON 字符串。",
+      "CHECK_INTERVAL。值为 30 秒，是两次健康检查之间的等待间隔。",
     ],
-    blanks: [{ index: 0, answer: ["not"], hint: "Python中用什么关键字对值取反？" }],
-    explanation:
-      "not。not result.get('recommendations') 在 recommendations 为 None/空列表时返回 True。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "subprocess.run 中检查命令执行状态的参数",
-    codeLines: [
-      "result = subprocess.run(",
-      "    [...], capture_output=True, text=True,",
-      "    ____=True",
-      ")",
-    ],
-    blanks: [{ index: 0, answer: ["check"], hint: "这个参数让命令执行失败时抛出异常" }],
-    explanation:
-      "check=True。subprocess.run 的 check 参数设为 True 时，命令返回非零退出码会抛出 CalledProcessError。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "self_heal 中执行重启命令的变量名",
-    codeLines: ["subprocess.run(____, check=False)"],
-    blanks: [{ index: 0, answer: ["RESTART_COMMAND"], hint: "文件顶部定义的大写常量" }],
-    explanation:
-      'RESTART_COMMAND。这是文件开头定义的重启命令变量 ["docker", "restart", "rec-model"]。',
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "重启失败后退出脚本并返回错误码1",
-    codeLines: ["# 填空：退出脚本并返回错误码1", "____"],
-    blanks: [{ index: 0, answer: ["sys.exit(1)"], hint: "用 sys 模块的哪个方法退出程序？" }],
-    explanation: "sys.exit(1)。sys.exit() 退出程序，参数 1 表示非正常退出。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "日志轮转时重命名文件的方法名",
-    codeLines: ['os.____("/var/log/model_health.log", backup)'],
-    blanks: [{ index: 0, answer: ["rename"], hint: "os 模块中用于重命名的函数" }],
-    explanation: "os.rename()。将当前日志文件重命名为带日期后缀的备份文件。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "获取 ISO 格式时间戳的方法名",
-    codeLines: ['"time": datetime.now().____()'],
-    blanks: [{ index: 0, answer: ["isoformat"], hint: "ISO 格式的英文是什么？" }],
-    explanation:
-      "isoformat()。datetime 对象的 isoformat() 方法返回 ISO 8601 格式的时间字符串。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "将字典转为 JSON 字符串写入文件",
-    codeLines: ['f.write(____ + "\\n")'],
-    blanks: [{ index: 0, answer: ["json.dumps(record)"], hint: "json 模块中哪个方法把对象转字符串？" }],
-    explanation:
-      "json.dumps(record)。dumps = dump string，将 Python 字典序列化为 JSON 字符串。",
-  },
-  {
-    project: "项目1：健康检查与自愈",
-    type: "fill",
-    context: "主循环中等待检查间隔的变量名",
-    codeLines: ["time.sleep(____)"],
-    blanks: [{ index: 0, answer: ["CHECK_INTERVAL"], hint: "文件顶部定义的秒数常量" }],
-    explanation: "CHECK_INTERVAL。值为 30 秒，是两次健康检查之间的等待间隔。",
   },
   {
     project: "项目1：健康检查与自愈",
@@ -151,7 +230,7 @@ export const questions: Question[] = [
     ],
     correctIndex: 0,
     explanation:
-      "正确顺序：① 流量热切换（止血，保证可用性）→ ② 自动修复（增量训练/校准，修复根因）→ ③ 记录快照+告警+暂停回切（人工兜底）。口诀：止血→治病→叫医生。",
+      "正确顺序：① 流量热切换（止血）→ ② 自动修复（治病）→ ③ 快照+告警（叫医生）。口诀：止血→治病→叫医生。",
     hint: "想想优先级：先保命还是先修bug？",
   },
   {
@@ -171,8 +250,7 @@ export const questions: Question[] = [
   {
     project: "项目1：健康检查与自愈",
     type: "essay",
-    question:
-      "请默写自愈策略的3个步骤及每个步骤的目标。（写完后点\"查看参考答案\"对照）",
+    question: '请默写自愈策略的3个步骤及每个步骤的目标。（写完后点"查看参考答案"对照）',
     hint: "口诀：止血→治病→叫医生",
     reference: [
       "步骤1：流量热切换 — 将生产流量切到上一个稳定版本模型。目标：保证服务可用性，止血。",
@@ -181,7 +259,7 @@ export const questions: Question[] = [
     ],
   },
 
-  // ===== 项目2: 数据清洗 (7题) =====
+  // ===== 项目2: 数据清洗 =====
   {
     project: "项目2：数据清洗",
     type: "multi",
@@ -284,91 +362,102 @@ export const questions: Question[] = [
     hint: "空值也是一种信息",
   },
 
-  // ===== 项目3: 标注质检 (8题) =====
+  // ===== 项目3: 标注质检 =====
   {
     project: "项目3：标注质检",
-    type: "fill",
-    context: "train_model 函数中，训练随机森林模型的方法",
+    type: "codeblock",
+    title: "代码填空：label_quality_checker.py",
+    fileName: "label_quality_checker.py",
     codeLines: [
+      "import numpy as np",
+      "import pandas as pd",
+      "from sklearn.ensemble import RandomForestClassifier",
+      "",
+      "# ========== 配置 ==========",
+      "CONFIDENCE_THRESHOLD = 0.7    # 置信度低于此值的样本标记为疑似错误",
+      'LABEL_FILE = "labels.csv"     # 标注结果文件（含 image_id, 50 个特征, label, annotator_id）',
+      "",
       "def train_model(X, y):",
+      '    """训练随机森林分类器"""',
       "    model = RandomForestClassifier(n_estimators=100)",
-      "    ____",
+      "    # 填空1：训练模型",
+      "    {1}",
       "    return model",
-    ],
-    blanks: [{ index: 0, answer: ["model.fit(X, y)"], hint: "sklearn 模型用什么方法训练？" }],
-    explanation: "model.fit(X, y)。fit 是 sklearn 模型的标准训练方法。",
-  },
-  {
-    project: "项目3：标注质检",
-    type: "fill",
-    context: "predict_confidence 函数中，预测类别",
-    codeLines: [
-      "proba = model.predict_proba(X)",
-      "____",
-      "confidence = np.max(proba, axis=1)",
+      "",
+      "def predict_confidence(model, X):",
+      '    """',
+      "    对每个样本预测类别和置信度",
+      '    置信度 = 模型对该预测的最高概率值',
+      '    """',
+      "    proba = model.predict_proba(X)  # 获取每个类别的概率",
+      "    # 填空2：预测类别",
+      "    {2}",
+      "    # 填空3：取最高概率作为置信度",
+      "    {3}",
+      "    return pred, confidence",
+      "",
+      "def detect_mislabeled(y_true, y_pred, confidence):",
+      '    """',
+      "    找出疑似错误标注的样本",
+      '    判断规则：预测类别与标注类别不一致，且置信度低于阈值',
+      '    """',
+      "    inconsistent = (y_true != y_pred)",
+      "    # 填空4：置信度低于阈值的条件",
+      "    {4}",
+      "    mislabeled_idx = np.where(inconsistent & low_conf)[0]",
+      "    return mislabeled_idx",
+      "",
+      "def annotator_report(df, mislabeled_idx):",
+      '    """生成标注员质量报告"""',
+      '    df["is_mislabeled"] = False',
+      '    df.loc[mislabeled_idx, "is_mislabeled"] = True',
+      "",
+      '    report = df.groupby("annotator_id").agg(',
+      '        总标注数=("image_id", "count"),',
+      '        疑似错误数=("is_mislabeled", "sum")',
+      "    )",
+      "    # 填空5：计算错误率（疑似错误数 ÷ 总标注数）",
+      "    {5}",
+      "    return report",
+      "",
+      "def main():",
+      "    # 加载数据",
+      "    df = pd.read_csv(LABEL_FILE)",
+      "    # 特征列：f1 到 f50（图片经过预训练模型提取的特征向量）",
+      '    X = df[[f"f{i}" for i in range(1, 51)]].values',
+      '    y = df["label"].values',
+      "",
+      "    # 训练模型",
+      "    model = train_model(X, y)",
+      "",
+      "    # 预测与质检",
+      "    y_pred, confidence = predict_confidence(model, X)",
+      "    mislabeled_idx = detect_mislabeled(y, y_pred, confidence)",
+      "",
+      "    # 生成报告",
+      "    report = annotator_report(df, mislabeled_idx)",
+      '    report.to_csv("quality_report.csv")',
+      "",
+      '    print(f"共发现 {len(mislabeled_idx)} 个疑似错误标注")',
+      '    print("质检报告已保存为 quality_report.csv")',
+      "",
+      'if __name__ == "__main__":',
+      "    main()",
     ],
     blanks: [
-      {
-        index: 0,
-        answer: ["pred = model.predict(X)"],
-        hint: "predict_proba 返回概率，用什么方法返回类别？",
-      },
+      { id: 1, answer: ["model.fit(X, y)"], hint: "sklearn 模型用什么方法训练？" },
+      { id: 2, answer: ["pred = model.predict(X)"], hint: "predict_proba 返回概率，用什么方法返回类别？" },
+      { id: 3, answer: ["confidence = np.max(proba, axis=1)", "np.max(proba, axis=1)"], hint: "用 numpy 的什么方法取每行的最大值？" },
+      { id: 4, answer: ["low_conf = confidence < CONFIDENCE_THRESHOLD", "confidence < CONFIDENCE_THRESHOLD"], hint: "用 < 运算符比较置信度和阈值" },
+      { id: 5, answer: ['report["错误率"] = report["疑似错误数"] / report["总标注数"]', 'report["错误率"]=report["疑似错误数"]/report["总标注数"]'], hint: "错误率 = 错误数 ÷ 总数" },
     ],
-    explanation:
+    explanations: [
+      "model.fit(X, y)。fit 是 sklearn 模型的标准训练方法。",
       "pred = model.predict(X)。predict 返回预测类别，predict_proba 返回各类概率。",
-  },
-  {
-    project: "项目3：标注质检",
-    type: "fill",
-    context: "取最高概率作为置信度",
-    codeLines: ["____"],
-    blanks: [
-      {
-        index: 0,
-        answer: ["confidence = np.max(proba, axis=1)", "np.max(proba, axis=1)"],
-        hint: "用 numpy 的什么方法取每行的最大值？",
-      },
+      "confidence = np.max(proba, axis=1)。沿 axis=1 取每行最大概率值作为置信度。",
+      "low_conf = confidence < CONFIDENCE_THRESHOLD。低于0.7阈值的标记为低置信度。",
+      'report["错误率"] = report["疑似错误数"] / report["总标注数"]。错误率 = 错误数 ÷ 总数。',
     ],
-    explanation:
-      "confidence = np.max(proba, axis=1)。沿 axis=1（列方向）取每行最大概率值作为置信度。",
-  },
-  {
-    project: "项目3：标注质检",
-    type: "fill",
-    context: "detect_mislabeled 中，置信度低于阈值的判断条件",
-    codeLines: [
-      "inconsistent = (y_true != y_pred)",
-      "____",
-      "mislabeled_idx = np.where(inconsistent & low_conf)[0]",
-    ],
-    blanks: [
-      {
-        index: 0,
-        answer: [
-          "low_conf = confidence < CONFIDENCE_THRESHOLD",
-          "confidence < CONFIDENCE_THRESHOLD",
-        ],
-        hint: "用 < 运算符比较置信度和阈值",
-      },
-    ],
-    explanation: "low_conf = confidence < CONFIDENCE_THRESHOLD。低于0.7阈值的标记为低置信度。",
-  },
-  {
-    project: "项目3：标注质检",
-    type: "fill",
-    context: "annotator_report 中计算错误率",
-    codeLines: ['report["错误率"] = ____'],
-    blanks: [
-      {
-        index: 0,
-        answer: [
-          'report["疑似错误数"] / report["总标注数"]',
-          'report["疑似错误数"]/report["总标注数"]',
-        ],
-        hint: "错误率 = 错误数 ÷ 总数",
-      },
-    ],
-    explanation: 'report["疑似错误数"] / report["总标注数"]。错误率就是疑似错误数除以总标注数。',
   },
   {
     project: "项目3：标注质检",
@@ -377,7 +466,7 @@ export const questions: Question[] = [
     options: ["A. 标注错误", "B. 模型错误", "C. 图片模糊难判"],
     correctIndex: 1,
     explanation:
-      "选B模型错误。模型96%确信 → 充分学习了特征分布 → 大概率是人工标注失误。如果图片模糊，模型置信度会很低，不可能到0.96。质检逻辑是\"低置信+不一致=标注错误\"，高置信度不适用该逻辑。",
+      "选B模型错误。模型96%确信 → 充分学习了特征分布 → 大概率是人工标注失误。如果图片模糊，模型置信度会很低，不可能到0.96。",
     hint: "高置信度说明模型很\"确信\"，这时候谁更可能出错？",
   },
   {
@@ -392,7 +481,7 @@ export const questions: Question[] = [
     ],
     correctIndex: 1,
     explanation:
-      '判断规则是"预测类别与标注类别不一致，且（AND）置信度低于0.7阈值"，两个条件同时满足才标记为疑似错误。',
+      '判断规则是"预测与标注不一致，且（AND）置信度低于0.7阈值"，两个条件同时满足才标记为疑似错误。',
     hint: "两个条件要同时满足还是只要一个？",
   },
   {
@@ -408,7 +497,7 @@ export const questions: Question[] = [
     ],
   },
 
-  // ===== 项目4: 自动驾驶 (5题) =====
+  // ===== 项目4: 自动驾驶 =====
   {
     project: "项目4：自动驾驶",
     type: "fill",

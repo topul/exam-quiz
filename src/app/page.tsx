@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { questions, PROJECTS, PROJECT_SHORT } from "@/data/questions";
 import FillCard from "@/components/FillCard";
+import CodeBlockCard from "@/components/CodeBlockCard";
 import MultiCard from "@/components/MultiCard";
 import EssayCard from "@/components/EssayCard";
 
@@ -16,12 +17,16 @@ export default function QuizPage() {
   const [wrongSet, setWrongSet] = useState<Set<number>>(new Set());
 
   const filtered = useMemo(
-    () => (filter === "all" ? questions : questions.filter((q) => q.project === filter)),
+    () =>
+      filter === "all"
+        ? questions
+        : questions.filter((q) => q.project === filter),
     [filter]
   );
 
   const globalIdx = useMemo(
-    () => (filtered.length > 0 ? questions.indexOf(filtered[currentIdx]) : -1),
+    () =>
+      filtered.length > 0 ? questions.indexOf(filtered[currentIdx]) : -1,
     [filtered, currentIdx]
   );
 
@@ -49,7 +54,7 @@ export default function QuizPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-200">
-      <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
         {/* Header */}
         <header className="text-center mb-6">
           <h1 className="text-xl sm:text-2xl font-bold text-sky-400">
@@ -81,7 +86,10 @@ export default function QuizPage() {
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
-          <TabBtn active={filter === "all"} onClick={() => switchFilter("all")}>
+          <TabBtn
+            active={filter === "all"}
+            onClick={() => switchFilter("all")}
+          >
             全部
           </TabBtn>
           {PROJECTS.map((p) => (
@@ -100,6 +108,15 @@ export default function QuizPage() {
           {q.project} · 第 {currentIdx + 1} / {filtered.length} 题
         </div>
 
+        {q.type === "codeblock" && (
+          <CodeBlockCard
+            key={globalIdx}
+            question={q}
+            globalIdx={globalIdx}
+            isAnswered={isAnswered}
+            onAnswered={handleAnswered}
+          />
+        )}
         {q.type === "fill" && (
           <FillCard
             key={globalIdx}
