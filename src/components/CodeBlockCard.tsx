@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { CodeBlockQuestion } from "@/data/questions";
-import { highlightPython } from "@/lib/syntax";
 
 interface Props {
   question: CodeBlockQuestion;
@@ -65,48 +64,93 @@ export default function CodeBlockCard({
   const correctCount = results.filter((r) => r === "correct").length;
   const totalBlanks = question.blanks.length;
 
-  // Build line number + highlighted code for each line
-  const renderBlankInput = (id: number) => {
-    const bi = question.blanks.findIndex((b) => b.id === id);
-    if (bi < 0) return <span key={`miss-${id}`}>{`{${id}}`}</span>;
+  /**
+   * Render a single code line, replacing {N} markers with input fields.
+   */
+  const renderLine = (line: string, lineIdx: number) => {
+    const regex = /\{(\d+)\}/g;
+    const parts: (string | number)[] = [];
+    let lastIdx = 0;
+    let m: RegExpExecArray | null;
 
-    const r = results[bi];
-    const cls = `inline-block px-2 py-0 rounded border text-center font-mono text-[13px] outline-none transition-all ${
-      r === "correct"
-        ? "bg-emerald-950 border-emerald-500 text-emerald-300"
-        : r === "wrong"
-        ? "bg-red-950 border-red-500 text-red-300"
-        : "bg-indigo-950/80 border-indigo-500/60 text-indigo-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-400"
-    }`;
+    while ((m = regex.exec(line)) !== null) {
+      if (m.index > lastIdx) parts.push(line.slice(lastIdx, m.index));
+      parts.push(parseInt(m[1]));
+      lastIdx = m.index + m[0].length;
+    }
+    if (lastIdx < line.length) parts.push(line.slice(lastIdx));
+
+    const lineNum = (
+      <span className="inline-block w-8 text-right mr-3 text-slate-600 select-none text-xs">
+        {lineIdx + 1}
+      </span>
+    );
+
+    if (parts.length === 0 || (parts.length === 1 && typeof parts[0] === "string")) {
+      const text = typeof parts[0] === "string" ? parts[0] : "";
+      return (
+        <div key={lineIdx} className="whitespace-pre">
+          {lineNum}
+          <span className="text-slate-300">{text || "\u00A0"}</span>
+        </div>
+      );
+    }
 
     return (
-      <span key={`blank-${id}`} className="inline-flex items-center gap-0.5">
-        <span className="text-indigo-400/70 text-[10px] font-bold select-none">
-          {id}
-        </span>
-        <input
-          data-blank={bi}
-          value={inputs[bi]}
-          onChange={(e) => handleInput(bi, e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleCheck();
-            if (e.key === "Tab") {
-              e.preventDefault();
-              const next = (bi + 1) % question.blanks.length;
-              codeRef.current
-                ?.querySelector<HTMLInputElement>(`input[data-blank="${next}"]`)
-                ?.focus();
-            }
-          }}
-          disabled={checked}
-          className={cls}
-          style={{
-            minWidth: "6ch",
-            width: `${Math.max(inputs[bi].length + 2, 6)}ch`,
-          }}
-          placeholder="?"
-        />
-      </span>
+      <div key={lineIdx} className="whitespace-pre">
+        {lineNum}
+        {parts.map((part, pi) => {
+          if (typeof part === "string") {
+            return (
+              <span key={pi} className="text-slate-300">
+                {part}
+              </span>
+            );
+          }
+          // part is a blank id
+          const bi = question.blanks.findIndex((b) => b.id === part);
+          if (bi < 0) return <span key={pi}>{`{${part}}`}</span>;
+
+          const r = results[bi];
+          const inputCls = `inline-block px-2 py-0 rounded border text-center font-mono text-[13px] outline-none transition-all ${
+            r === "correct"
+              ? "bg-emerald-950 border-emerald-500 text-emerald-300"
+              : r === "wrong"
+              ? "bg-red-950 border-red-500 text-red-300"
+              : "bg-indigo-950/80 border-indigo-500/60 text-indigo-200 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-400"
+          }`;
+
+          return (
+            <span key={pi} className="inline-flex items-center gap-0.5">
+              <span className="text-indigo-400/70 text-[10px] font-bold select-none">
+                {part}
+              </span>
+              <input
+                data-blank={bi}
+                value={inputs[bi]}
+                onChange={(e) => handleInput(bi, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCheck();
+                  if (e.key === "Tab") {
+                    e.preventDefault();
+                    const next = (bi + 1) % question.blanks.length;
+                    codeRef.current
+                      ?.querySelector<HTMLInputElement>(`input[data-blank="${next}"]`)
+                      ?.focus();
+                  }
+                }}
+                disabled={checked}
+                className={inputCls}
+                style={{
+                  minWidth: "6ch",
+                  width: `${Math.max(inputs[bi].length + 2, 6)}ch`,
+                }}
+                placeholder="?"
+              />
+            </span>
+          );
+        })}
+      </div>
     );
   };
 
@@ -133,29 +177,9 @@ export default function CodeBlockCard({
       {/* Code Block */}
       <div
         ref={codeRef}
-        className="rounded-xl bg-[#0d1117] border border-slate-800 p-4 font-mono text-[13px] leading-[1.85] mb-4 overflow-x-auto"
+        className="rounded-xl bg-slate-950 border border-slate-800 p-4 font-mono text-[13px] leading-[1.85] mb-4 overflow-x-auto"
       >
-        {question.codeLines.map((line, li) => {
-          const lineNum = (
-            <span className="inline-block w-8 text-right mr-3 text-slate-600 select-none text-xs leading-[1.85]">
-              {li + 1}
-            </span>
-          );
-
-          // Highlight the line with Prism, blanks rendered as inputs
-          const highlighted = highlightPython(line, renderBlankInput);
-
-          return (
-            <div key={li} className="whitespace-pre">
-              {lineNum}
-              {highlighted.length > 0 ? (
-                highlighted
-              ) : (
-                <span className="text-slate-300">{"\u00A0"}</span>
-              )}
-            </div>
-          );
-        })}
+        {question.codeLines.map((line, li) => renderLine(line, li))}
       </div>
 
       {/* Per-blank hint toggles */}
