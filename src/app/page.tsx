@@ -5,7 +5,6 @@ import { questions, PROJECTS, PROJECT_SHORT } from "@/data/questions";
 import FillCard from "@/components/FillCard";
 import CodeBlockCard from "@/components/CodeBlockCard";
 import MultiCard from "@/components/MultiCard";
-import ShortAnswerCard from "@/components/ShortAnswerCard";
 import EssayCard from "@/components/EssayCard";
 
 type FilterType = "all" | (typeof PROJECTS)[number];
@@ -129,15 +128,6 @@ export default function QuizPage() {
         )}
         {q.type === "multi" && (
           <MultiCard
-            key={globalIdx}
-            question={q}
-            globalIdx={globalIdx}
-            isAnswered={isAnswered}
-            onAnswered={handleAnswered}
-          />
-        )}
-        {q.type === "shortanswer" && (
-          <ShortAnswerCard
             key={globalIdx}
             question={q}
             globalIdx={globalIdx}

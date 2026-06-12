@@ -24,15 +24,6 @@ export interface MultiQuestion {
   hint: string;
 }
 
-export interface ShortAnswerQuestion {
-  type: "shortanswer";
-  question: string;
-  options: string[];
-  answer: string[];
-  hint: string;
-  explanation: string;
-}
-
 export interface EssayQuestion {
   type: "essay";
   question: string;
@@ -44,7 +35,6 @@ export type Question = (
   | FillQuestion
   | CodeBlockQuestion
   | MultiQuestion
-  | ShortAnswerQuestion
   | EssayQuestion
 ) & {
   project: string;
@@ -230,32 +220,32 @@ export const questions: Question[] = [
   },
   {
     project: "项目1：健康检查与自愈",
-    type: "shortanswer",
-    question: "自愈策略的三步骤正确顺序是？（输入选项字母）",
+    type: "multi",
+    question: "自愈策略的三步骤正确顺序是？",
     options: [
       "A. 流量热切换(止血) → 自动修复(治病) → 快照告警(叫医生)",
       "B. 快照告警 → 流量热切换 → 自动修复",
       "C. 自动修复 → 流量热切换 → 快照告警",
       "D. 流量热切换 → 快照告警 → 自动修复",
     ],
-    answer: ["A", "a"],
-    hint: "想想优先级：先保命还是先修bug？",
+    correctIndex: 0,
     explanation:
       "正确顺序：① 流量热切换（止血）→ ② 自动修复（治病）→ ③ 快照+告警（叫医生）。口诀：止血→治病→叫医生。",
+    hint: "想想优先级：先保命还是先修bug？",
   },
   {
     project: "项目1：健康检查与自愈",
-    type: "shortanswer",
-    question: "自愈策略第1步（流量热切换）的目标是什么？（输入选项字母）",
+    type: "multi",
+    question: "自愈策略第1步（流量热切换）的目标是什么？",
     options: [
       "A. 修复模型根因",
       "B. 保证服务可用性，防止劣化模型继续影响用户",
       "C. 通知运维团队",
       "D. 记录事件日志",
     ],
-    answer: ["B", "b"],
-    hint: "第一步永远是最紧急的事",
+    correctIndex: 1,
     explanation: "流量热切换的目标是保证服务可用性，将流量从问题模型切到稳定版本，快速止血。",
+    hint: "第一步永远是最紧急的事",
   },
   {
     project: "项目1：健康检查与自愈",
@@ -272,48 +262,48 @@ export const questions: Question[] = [
   // ===== 项目2: 数据清洗 =====
   {
     project: "项目2：数据清洗",
-    type: "shortanswer",
-    question: "某重要字段空值率80%，正确的处理方式是？（输入选项字母）",
+    type: "multi",
+    question: "某重要字段空值率80%，正确的处理方式是？",
     options: [
       "A. 直接删除该字段",
       "B. 删除所有含空值的行",
       'C. 先分析空值与标签关联性，有规律则填充规范值，无规律则保留字段+新增"是否空"辅助特征',
       "D. 用0填充所有空值",
     ],
-    answer: ["C", "c"],
-    hint: "高空值字段往往有隐藏信息",
+    correctIndex: 2,
     explanation:
       '不删字段！先分析空值与标签的关联规律：有规律→填充规范值（如"无"）；无规律→保留字段+新增辅助特征列。空值本身是有效特征信号。',
+    hint: "高空值字段往往有隐藏信息",
   },
   {
     project: "项目2：数据清洗",
-    type: "shortanswer",
-    question: "两条完全一致的对话文本有不同意图标注，正确的处理是？（输入选项字母）",
+    type: "multi",
+    question: "两条完全一致的对话文本有不同意图标注，正确的处理是？",
     options: [
       "A. 强制统一为出现次数最多的标注",
       "B. 删除这两条数据",
       "C. 抽样复核区分标注错误与多义性，错误则修正，歧义则保留多标签并标记争议样本",
       "D. 随机选一个标注",
     ],
-    answer: ["C", "c"],
-    hint: "同样的文字可能有不同的意思",
+    correctIndex: 2,
     explanation:
       '先抽样复核：标注错误→多数投票/专家审核修正；真实歧义→保留多标签+元数据标记"争议样本"。强行统一会抹杀语言多义性。',
+    hint: "同样的文字可能有不同的意思",
   },
   {
     project: "项目2：数据清洗",
-    type: "shortanswer",
-    question: "乱码字符的正确处理策略是？（输入选项字母）",
+    type: "multi",
+    question: "乱码字符的正确处理策略是？",
     options: [
       "A. 全部删除含乱码的数据",
       "B. 先尝试多编码修复(UTF-8/GBK/GB18030)，单字符删除，连续3个以上整条删除",
       "C. 不做处理直接使用",
       "D. 用空格替换所有乱码字符",
     ],
-    answer: ["B", "b"],
-    hint: "少量乱码和大面积乱码处理方式不同",
+    correctIndex: 1,
     explanation:
       "先尝试多编码修复（UTF-8、GBK、GB18030）→ 单个乱码直接删除字符 → 连续3个以上乱码则整条删除/标记废弃。",
+    hint: "少量乱码和大面积乱码处理方式不同",
   },
   {
     project: "项目2：数据清洗",
@@ -331,17 +321,17 @@ export const questions: Question[] = [
   },
   {
     project: "项目2：数据清洗",
-    type: "shortanswer",
-    question: "以下哪项不是数据清洗培训要点？（输入选项字母）",
+    type: "multi",
+    question: "以下哪项不是数据清洗培训要点？",
     options: [
       "A. 清洗前必须完整备份",
       "B. 严格执行日志记录制度",
       "C. 空值数据应优先删除",
       "D. 清洗后需对比前后数据分布",
     ],
-    answer: ["C", "c"],
-    hint: "想想空值能不能随便删",
+    correctIndex: 2,
     explanation: "C是错的！禁止盲目删除空值数据，必须先分析空值分布规律和关联性再定方案。",
+    hint: "想想空值能不能随便删",
   },
   {
     project: "项目2：数据清洗",
@@ -358,18 +348,18 @@ export const questions: Question[] = [
   },
   {
     project: "项目2：数据清洗",
-    type: "shortanswer",
-    question: "高空值字段不直接删除的核心原因是？（输入选项字母）",
+    type: "multi",
+    question: "高空值字段不直接删除的核心原因是？",
     options: [
       "A. 删除会减少数据量",
       "B. 空值本身可作为模型学习的有效特征信号，直接删除会造成信息损失",
       "C. 删除操作太复杂",
       "D. 空值字段不影响模型",
     ],
-    answer: ["B", "b"],
-    hint: "空值也是一种信息",
+    correctIndex: 1,
     explanation:
       "高空值字段往往具备隐藏数据特征，空值本身可作为模型学习的有效特征信号，直接删除会造成大量信息损失。",
+    hint: "空值也是一种信息",
   },
 
   // ===== 项目3: 标注质检 =====
@@ -471,13 +461,13 @@ export const questions: Question[] = [
   },
   {
     project: "项目3：标注质检",
-    type: "shortanswer",
-    question: "预测与标注不一致 + 置信度高达0.96，更可能是？（输入选项字母）",
+    type: "multi",
+    question: "预测与标注不一致 + 置信度高达0.96，更可能是？",
     options: ["A. 标注错误", "B. 模型错误", "C. 图片模糊难判"],
-    answer: ["B", "b"],
-    hint: "高置信度说明模型很\"确信\"，这时候谁更可能出错？",
+    correctIndex: 1,
     explanation:
       "选B模型错误。模型96%确信 → 充分学习了特征分布 → 大概率是人工标注失误。如果图片模糊，模型置信度会很低，不可能到0.96。",
+    hint: "高置信度说明模型很\"确信\"，这时候谁更可能出错？",
   },
   {
     project: "项目3：标注质检",
@@ -526,31 +516,31 @@ export const questions: Question[] = [
   },
   {
     project: "项目4：自动驾驶",
-    type: "shortanswer",
-    question: "二级冗余策略中，哪一级最难实现？（输入选项字母）",
+    type: "multi",
+    question: "二级冗余策略中，哪一级最难实现？",
     options: [
       "A. 一级冗余（纯IMU航迹推算）",
       "B. 二级冗余（降级为车道偏离预警）",
       "C. 两者难度相当",
     ],
-    answer: ["A", "a"],
-    hint: "纯靠惯性导航没有外部参考会怎样？",
+    correctIndex: 0,
     explanation:
       "一级冗余（纯IMU航迹推算）最难。原因：① 积分漂移（2-3秒偏差可超1米）② 缺绝对参考只能盲推 ③ 弯道误差放大 ④ 工程验证困难。",
+    hint: "纯靠惯性导航没有外部参考会怎样？",
   },
   {
     project: "项目4：自动驾驶",
-    type: "shortanswer",
-    question: "IMU一级冗余难实现的核心原因不包括？（输入选项字母）",
+    type: "multi",
+    question: "IMU一级冗余难实现的核心原因不包括？",
     options: [
       "A. 积分漂移问题",
       "B. 缺少绝对参考",
       "C. 传感器成本太高",
       "D. 弯道误差放大",
     ],
-    answer: ["C", "c"],
-    hint: "想想技术难点 vs 成本问题",
+    correctIndex: 2,
     explanation:
       "核心原因包括：积分漂移、缺绝对参考、弯道误差放大、工程验证困难。传感器成本不是主要难点。",
+    hint: "想想技术难点 vs 成本问题",
   },
 ];
